@@ -1,38 +1,42 @@
 #include <iostream>
 #include <opencv.hpp>
 #include <highgui/highgui.hpp>
+#include <cmath>
 
 #define NIMAGES 1
+#define PI 3.14159265
 
 void sobel(const cv::Mat& image, int number)
 {
 	// Compute and display image containing the derivative in the x direction af/ax
 	std::ostringstream windowName;
-	cv::Mat xDeriv;
+	cv::Mat xDeriv, xNorm;
 
 	windowName << "Coins " << (number + 1) << ": X derivative";
 
-	cv::Sobel(image, xDeriv, CV_8U, 1, 0);
+	cv::Sobel(image, xDeriv, CV_64F, 1, 0);
 
-	//double minVal, maxVal;
-	//cv::minMaxLoc(xDeriv, &minVal, &maxVal);
-	cv::normalize(xDeriv, xDeriv, 0, 255, cv::NORM_MINMAX);
-
-
+	double minVal, maxVal;
+	cv::normalize(xDeriv, xNorm, 0, 255, cv::NORM_MINMAX);
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
-	cv::imshow(windowName.str().c_str(), xDeriv);
+	cv::Mat temp8Bit;
+	xNorm.convertTo(temp8Bit, CV_8U);
+	cv::imshow(windowName.str().c_str(),temp8Bit);
 
 	// Compute and display image containing the derivative in the x direction af/ax
-	cv::Mat yDeriv;
+	cv::Mat yDeriv, yNorm;
 
 	// Change window name
 	windowName.str("");
 	windowName.clear();
 	windowName << "Coins " << (number + 1) << ": Y derivative";
 	
-	cv::Sobel(image, yDeriv, CV_8U, 0, 1);
+	cv::Sobel(image, yDeriv, CV_64F, 0, 1);
+	cv::normalize(yDeriv, yNorm, 0, 255, cv::NORM_MINMAX);
+
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
-	cv::imshow(windowName.str().c_str(), yDeriv);
+	yNorm.convertTo(temp8Bit, CV_8U);
+	cv::imshow(windowName.str().c_str(), temp8Bit);
 
 	// Image containing magnitude of the gradient f(x,y)
 
@@ -44,7 +48,7 @@ void sobel(const cv::Mat& image, int number)
 
 	cv::Mat tempFloat;
 	temp.convertTo(tempFloat, CV_64F);
-	cv::Mat grad;
+	cv::Mat grad, gradNorm;
 	cv::sqrt(tempFloat, grad);
 
 	// Change window name
@@ -52,10 +56,51 @@ void sobel(const cv::Mat& image, int number)
 	windowName.clear();
 	windowName << "Coins " << (number + 1) << ": gradient magnitude";
 	
+	cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
+
+	for(int i = 0; i < gradNorm.rows; i++)
+	{
+		for(int j =0; j < gradNorm.cols; j++)
+		{
+			double point = gradNorm.at<double>(i, j);
+			gradNorm.at<double>(i, j) = point - minVal;
+		}
+	}
+
+
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
-	cv::imshow(windowName.str().c_str(), grad);
+	gradNorm.convertTo(temp8Bit, CV_8U);
 
 
+	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+	cv::imshow(windowName.str().c_str(), temp8Bit);
+
+	// Arc tan
+	// Change window name
+	windowName.str("");
+	windowName.clear();
+	windowName << "Coins " << (number + 1) << ": arctan";
+	cv::Mat divided, arc, arcNorm;
+	cv::divide(yDeriv, xDeriv, divided);
+
+
+	arc = divided.clone();
+
+	for(int i = 0; i < divided.rows; i++)
+	{
+		for(int j =0; j < divided.cols; j++)
+		{
+			double point = divided.at<double>(i, j);
+			arc.at<double>(i, j) = (double)atan(point) * 180 / PI;
+		}
+	}
+
+	cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
+
+
+	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+	arcNorm.convertTo(temp8Bit, CV_8U);
+	cv::imshow(windowName.str().c_str(), temp8Bit);
 }
 
 int main( int argc, char ** argv )
