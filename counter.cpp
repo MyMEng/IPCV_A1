@@ -57,20 +57,7 @@ void sobel(const cv::Mat& image, int number)
 	windowName << "Coins " << (number + 1) << ": gradient magnitude";
 	
 	cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
-
-	for(int i = 0; i < gradNorm.rows; i++)
-	{
-		for(int j =0; j < gradNorm.cols; j++)
-		{
-			double point = gradNorm.at<double>(i, j);
-			gradNorm.at<double>(i, j) = point - minVal;
-		}
-	}
-
-
-	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
 	gradNorm.convertTo(temp8Bit, CV_8U);
-
 
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
 	cv::imshow(windowName.str().c_str(), temp8Bit);
@@ -81,26 +68,47 @@ void sobel(const cv::Mat& image, int number)
 	windowName.clear();
 	windowName << "Coins " << (number + 1) << ": arctan";
 	cv::Mat divided, arc, arcNorm;
-	cv::divide(yDeriv, xDeriv, divided);
+	cv::divide(yNorm, xNorm, divided);
 
-
-	arc = divided.clone();
+	arc = xDeriv.clone();
+	divided = xDeriv.clone();
 
 	for(int i = 0; i < divided.rows; i++)
 	{
 		for(int j =0; j < divided.cols; j++)
 		{
-			double point = divided.at<double>(i, j);
-			arc.at<double>(i, j) = (double)atan(point) * 180 / PI;
+			double y = yDeriv.at<double>(i, j);
+			double x = xDeriv.at<double>(i, j);
+
+			if(y == 0)
+			{
+				arc.at<double>(i, j) = 1;
+				continue;
+			}
+			
+			arc.at<double>(i, j) = (double)atan2(y, x) * 180 / PI;
 		}
-	}
+	} 
+
 
 	cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
-
 
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
 	arcNorm.convertTo(temp8Bit, CV_8U);
 	cv::imshow(windowName.str().c_str(), temp8Bit);
+
+	// Change window name
+	windowName.str("");
+	windowName.clear();
+	windowName << "Coins " << (number + 1) << ": opencv phase";
+
+	cv::phase(xDeriv, yDeriv, arc);
+	cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
+
+	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+	arcNorm.convertTo(temp8Bit, CV_8U);
+	cv::imshow(windowName.str().c_str(), temp8Bit);
+
 }
 
 int main( int argc, char ** argv )
