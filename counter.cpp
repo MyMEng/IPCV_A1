@@ -70,23 +70,11 @@ void sobel(const cv::Mat& image, int number)
 	cv::Mat divided, arc, arcNorm;
 	cv::divide(yNorm, xNorm, divided);
 
-	arc = xDeriv.clone();
-	divided = xDeriv.clone();
-
 	for(int i = 0; i < divided.rows; i++)
 	{
 		for(int j =0; j < divided.cols; j++)
-		{
-			double y = yDeriv.at<double>(i, j);
-			double x = xDeriv.at<double>(i, j);
-
-			if(y == 0)
-			{
-				arc.at<double>(i, j) = 1;
-				continue;
-			}
-			
-			arc.at<double>(i, j) = (double)atan2(y, x) * 180 / PI;
+		{	
+			arc.at<double>(i, j) = (double)atan(divided.at<double>(i, j)) ;//* 180 / PI;
 		}
 	} 
 
