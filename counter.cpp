@@ -6,6 +6,12 @@
 #define NIMAGES 1
 #define PI 3.14159265
 
+#define IMGTHRESHOLD 85
+#define HOUGHX 200 //dimension of Hough Space in x direction
+#define HOUGHY 200 //dimension of Hough Space in y direction
+#define RMAX 100 //maximal radius of circle
+#define DELTATHETA 0.26179939 //15 degrees in radians
+
 void sobel(const cv::Mat& image, int number, cv::Mat& xDeriv, cv::Mat& yDeriv, cv::Mat& grad, cv::Mat& arc)
 {
 	// Compute and display image containing the derivative in the x direction af/ax
@@ -104,6 +110,98 @@ void sobel(const cv::Mat& image, int number, cv::Mat& xDeriv, cv::Mat& yDeriv, c
 
 }
 
+cv::Mat trshld( const int imageID, const cv::Mat& xDeriv, const cv::Mat& yDeriv, const cv::Mat& grad, const cv::Mat& arc )
+{
+	std::ostringstream windowName;
+
+	//threshold the gradient image after normalization
+	cv::Mat gradNorm ;
+	cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
+	for(int i = 0; i < gradNorm.rows; ++i)
+	{
+		for (int j = 0; j < gradNorm.cols; ++j)
+		{
+			//std::cout << "i: " << i << " j: " << j << std::endl ;
+			double tr = gradNorm.at<double>(i, j);
+			if (tr > IMGTHRESHOLD)
+			{
+				gradNorm.at<double>(i, j) = 255 ;
+			} else
+			{
+				gradNorm.at<double>(i, j) = 0 ;
+			}
+		}
+	}
+	windowName.str("");
+	windowName.clear();
+	windowName << "Coins " << (imageID + 1) << ": gradient thresholded";
+	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+	cv::imshow(windowName.str().c_str(), gradNorm) ;
+
+	return gradNorm ;
+}
+
+void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc)
+{
+	std::ostringstream windowName;
+
+	// threshold the gradient image after normalization
+	cv::Mat gradNorm(grad.rows, grad.cols, CV_8U) ;
+	// cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
+
+	int counter = 0 ;
+	int cprim = 0;
+
+	for(int i = 0; i < grad.rows; ++i)
+	{
+		for (int j = 0; j < grad.cols; ++j)
+		{
+			//std::cout << "i: " << i << " j: " << j << std::endl ;
+			if (grad.at<double>(i, j) == 255)
+			{
+				for (int r = 0; r < RMAX; ++r)
+				{
+					double x1 = i+r*cos(arc.at<double>(i,j));
+					double x2 = i-r*cos(arc.at<double>(i,j));
+					double y1 = j+r*sin(arc.at<double>(i,j));
+					double y2 = j-r*sin(arc.at<double>(i,j));
+
+					if (x1 == x2 && y1 == y2)
+					{
+						counter++ ;
+						std::cout << "Eureka!" << x1 << "  " << y1 << std::endl ;
+						// fist we define the properties that the circle will have.
+					    cv::Scalar redColour(255, 0, 0);
+					    int radius = r;
+
+					    // providing a negative number will create a filled circle
+					    int thickness = 10;
+
+					    // 8 connected line
+					    // ( also there is a 4 connected line and CVAA which is an anti aliased line )
+					    int linetype = 8; 
+
+					    // here is where we define the center of the circle
+        				cv::Point center( x1, y1 );
+        				cv::circle ( gradNorm , center , radius , 50 , thickness , linetype );
+
+						//remember about transforming form i, j coordinates to hough coordinate
+						//increase hough space for x1, y1, r
+					}
+					cprim++ ;
+				}
+			}
+		}
+	}
+	std::cout << "Counter: " << counter << " Cprim: " << cprim << std::endl ;
+
+	windowName.str("");
+	windowName.clear();
+	windowName << "Coins " << (imageID + 1) << ": circles";
+	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+	cv::imshow(windowName.str().c_str(), gradNorm) ;
+}
+
 int main( int argc, char ** argv )
 {
 	// Coins
@@ -125,6 +223,10 @@ int main( int argc, char ** argv )
 		cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
 		cv::imshow(windowName.str().c_str(), coins[i]);
 		sobel(coins[i], i, xD, yD, grad, angle);
+
+		//edge extraction using Hough Circle Detection
+		cv::Mat gradTr = trshld(i, xD, yD, grad, angle) ;
+		hough(i, gradTr, angle) ;
 	}
 
 	cv::waitKey();
