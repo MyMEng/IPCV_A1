@@ -6,17 +6,15 @@
 #define NIMAGES 1
 #define PI 3.14159265
 
-void sobel(const cv::Mat& image, int number)
+void sobel(const cv::Mat& image, int number, cv::Mat& xDeriv, cv::Mat& yDeriv, cv::Mat& grad, cv::Mat& arc)
 {
 	// Compute and display image containing the derivative in the x direction af/ax
 	std::ostringstream windowName;
-	cv::Mat xDeriv, xNorm;
-
-	windowName << "Coins " << (number + 1) << ": X derivative";
-
-	cv::Sobel(image, xDeriv, CV_64F, 1, 0);
-
 	double minVal, maxVal;
+
+	cv::Mat xNorm;
+	windowName << "Coins " << (number + 1) << ": X derivative";
+	cv::Sobel(image, xDeriv, CV_64F, 1, 0);
 
 	cv::normalize(xDeriv, xNorm, 0, 255, cv::NORM_MINMAX);
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
@@ -25,7 +23,7 @@ void sobel(const cv::Mat& image, int number)
 	cv::imshow(windowName.str().c_str(),temp8Bit);
 
 	// Compute and display image containing the derivative in the x direction af/ax
-	cv::Mat yDeriv, yNorm;
+	cv::Mat yNorm;
 
 	// Change window name
 	windowName.str("");
@@ -40,8 +38,6 @@ void sobel(const cv::Mat& image, int number)
 	cv::imshow(windowName.str().c_str(), temp8Bit);
 
 	// Image containing magnitude of the gradient f(x,y)
-
-	//cv::Mat temp = xDeriv.mul(xDeriv) + yDeriv.mul(yDeriv);
 	cv::Mat xPow, yPow;
 	cv::pow(xDeriv, 2, xPow);
 	cv::pow(yDeriv, 2, yPow);
@@ -49,7 +45,7 @@ void sobel(const cv::Mat& image, int number)
 
 	cv::Mat tempFloat;
 	temp.convertTo(tempFloat, CV_64F);
-	cv::Mat grad, gradNorm;
+	cv::Mat gradNorm;
 	cv::sqrt(tempFloat, grad);
 
 	// Change window name
@@ -67,11 +63,14 @@ void sobel(const cv::Mat& image, int number)
 	// Change window name
 	windowName.str("");
 	windowName.clear();
-	windowName << "Coins " << (number + 1) << ": arctan";
+	windowName << "Coins " << (number + 1) << ": arc Tangent";
 	cv::Mat divided, arcNorm;
-	cv::Mat arc(xNorm.rows, xNorm.cols, CV_64F) ;
-	cv::divide(yDeriv, xDeriv, divided);
+	arc = ( cv::Mat(xNorm.rows, xNorm.cols, CV_64F) ).clone() ;
+	// arc.rows = xNorm.rows ;
+	// arc.cols = xNorm.cols ;
+	// arc.type = CV_64F ;
 
+	cv::divide(yDeriv, xDeriv, divided);
 	for(int i = 0; i < divided.rows; i++)
 	{
 		for(int j =0; j < divided.cols; j++)
@@ -113,6 +112,8 @@ int main( int argc, char ** argv )
 	coins[1] = cv::imread("coins2.png", CV_LOAD_IMAGE_GRAYSCALE);
 	coins[2] = cv::imread("coins3.png", CV_LOAD_IMAGE_GRAYSCALE);
 
+	cv::Mat xD, yD, grad, angle;
+
 	std::ostringstream windowName;
 
 	for(int i = 0; i < NIMAGES; ++i)
@@ -123,7 +124,7 @@ int main( int argc, char ** argv )
 
 		cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
 		cv::imshow(windowName.str().c_str(), coins[i]);
-		sobel(coins[i], i);
+		sobel(coins[i], i, xD, yD, grad, angle);
 	}
 
 	cv::waitKey();
