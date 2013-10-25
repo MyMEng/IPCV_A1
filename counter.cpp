@@ -17,6 +17,7 @@ void sobel(const cv::Mat& image, int number)
 	cv::Sobel(image, xDeriv, CV_64F, 1, 0);
 
 	double minVal, maxVal;
+
 	cv::normalize(xDeriv, xNorm, 0, 255, cv::NORM_MINMAX);
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
 	cv::Mat temp8Bit;
@@ -67,8 +68,9 @@ void sobel(const cv::Mat& image, int number)
 	windowName.str("");
 	windowName.clear();
 	windowName << "Coins " << (number + 1) << ": arctan";
-	cv::Mat divided, arc, arcNorm;
-	cv::divide(yNorm, xNorm, divided);
+	cv::Mat divided, arcNorm;
+	cv::Mat arc(xNorm.rows, xNorm.cols, CV_64F) ;
+	cv::divide(yDeriv, xDeriv, divided);
 
 	for(int i = 0; i < divided.rows; i++)
 	{
@@ -78,6 +80,9 @@ void sobel(const cv::Mat& image, int number)
 		}
 	} 
 
+	// Display minimum and maximum value from matrix
+	// cv::minMaxLoc(arc, &minVal, &maxVal) ;
+	// std::cout << "Minval: " << minVal << " Maxval: " << maxVal << std::endl ;
 
 	cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
 
@@ -85,17 +90,18 @@ void sobel(const cv::Mat& image, int number)
 	arcNorm.convertTo(temp8Bit, CV_8U);
 	cv::imshow(windowName.str().c_str(), temp8Bit);
 
+	// Phase Calculations
 	// Change window name
-	windowName.str("");
-	windowName.clear();
-	windowName << "Coins " << (number + 1) << ": opencv phase";
+	// windowName.str("");
+	// windowName.clear();
+	// windowName << "Coins " << (number + 1) << ": opencv phase";
 
-	cv::phase(xDeriv, yDeriv, arc);
-	cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
+	// cv::phase(xDeriv, yDeriv, arc);
+	// cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
 
-	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
-	arcNorm.convertTo(temp8Bit, CV_8U);
-	cv::imshow(windowName.str().c_str(), temp8Bit);
+	// cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+	// arcNorm.convertTo(temp8Bit, CV_8U);
+	// cv::imshow(windowName.str().c_str(), temp8Bit);
 
 }
 
