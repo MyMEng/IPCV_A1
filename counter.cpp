@@ -6,11 +6,15 @@
 #define NIMAGES 1
 #define PI 3.14159265
 
-#define IMGTHRESHOLD 85
+#define IMGTHRESHOLD 100
 #define HOUGHX 200 //dimension of Hough Space in x direction
 #define HOUGHY 200 //dimension of Hough Space in y direction
 #define RMAX 100 //maximal radius of circle
 #define DELTATHETA 0.26179939 //15 degrees in radians
+#define HOUGHTHRESHOLD 200
+
+using namespace cv;
+using namespace std;
 
 void sobel(const cv::Mat& image, int number, cv::Mat& xDeriv, cv::Mat& yDeriv, cv::Mat& grad, cv::Mat& arc)
 {
@@ -144,13 +148,17 @@ cv::Mat trshld( const int imageID, const cv::Mat& xDeriv, const cv::Mat& yDeriv,
 void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc)
 {
 	std::ostringstream windowName;
+	//cv::vector<cv::Vec3d> houghSpace;
+	// std::vector<std::vector<std::vector<int> > > houghSpace (HOUGHX, std::vector<std::vector<int> > (HOUGHY, std::vector<int>(RMAX, 0) ) ) ;
+	std::vector<std::vector<std::vector<int> > > houghSpace (grad.rows, std::vector<std::vector<int> > (grad.cols, std::vector<int>(RMAX, 0) ) ) ;
+
 
 	// threshold the gradient image after normalization
-	cv::Mat gradNorm(grad.rows, grad.cols, CV_8U) ;
+	cv::Mat gradNorm(grad.rows, grad.cols, CV_64F) ;
 	// cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
 
-	int counter = 0 ;
-	int cprim = 0;
+	// int counter = 0 ;
+	// int cprim = 0;
 
 	for(int i = 0; i < grad.rows; ++i)
 	{
@@ -166,39 +174,56 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc)
 					double y1 = j+r*sin(arc.at<double>(i,j));
 					double y2 = j-r*sin(arc.at<double>(i,j));
 
-					if (x1 == x2 && y1 == y2)
-					{
-						counter++ ;
-						std::cout << "Eureka!" << x1 << "  " << y1 << std::endl ;
+					//scale
+					// int x = (int) ;
+					// int y = (int) ;
+					houghSpace[(int)x1][(int)y1][r] += 1 ;
+					houghSpace[(int)x1][(int)y2][r] += 1 ;
+					houghSpace[(int)x2][(int)y1][r] += 1 ;
+					houghSpace[(int)x2][(int)y2][r] += 1 ;
+
+					// if ( abs(x1 - x2) < 10 && abs(y1 - y2) < 10 )
+					// {
+						// std::cout << "x=" << x1 << "  y=" << y1 << "  r=" << r <<std::endl;
+						// counter++ ;
+						// std::cout << "Eureka!" << x1 << "  " << y1 << std::endl ;
 						// fist we define the properties that the circle will have.
-					    cv::Scalar redColour(255, 0, 0);
-					    int radius = r;
+					    // cv::Scalar redColour(255, 0, 0);
+					    // int radius = r;
 
 					    // providing a negative number will create a filled circle
-					    int thickness = 10;
+					    // int thickness = 5;
 
 					    // 8 connected line
 					    // ( also there is a 4 connected line and CVAA which is an anti aliased line )
-					    int linetype = 8; 
+					    // int linetype = 8; 
 
 					    // here is where we define the center of the circle
-        				cv::Point center( x1, y1 );
-        				cv::circle ( gradNorm , center , radius , 50 , thickness , linetype );
+        				// cv::Point center( (int)x1, (int)y1 );
+        				// cv::circle ( gradNorm , center , radius , 50 , thickness , linetype );
 
 						//remember about transforming form i, j coordinates to hough coordinate
 						//increase hough space for x1, y1, r
-					}
-					cprim++ ;
+					// }
+					// cprim++ ;
 				}
 			}
 		}
 	}
-	std::cout << "Counter: " << counter << " Cprim: " << cprim << std::endl ;
+	// std::cout << "Counter: " << counter << " Cprim: " << cprim << std::endl ;
 
 	windowName.str("");
 	windowName.clear();
 	windowName << "Coins " << (imageID + 1) << ": circles";
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+
+	//scale
+	cv::Mat temp8Bit;
+	cv::normalize(gradNorm, temp8Bit, 0, 255, cv::NORM_MINMAX);
+	
+	temp8Bit.convertTo(gradNorm, CV_8U);
+	//convert
+
 	cv::imshow(windowName.str().c_str(), gradNorm) ;
 }
 
