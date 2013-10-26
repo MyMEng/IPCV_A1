@@ -3,15 +3,15 @@
 #include <highgui/highgui.hpp>
 #include <cmath>
 
-#define NIMAGES 1
+#define NIMAGES 3
 #define PI 3.14159265
 
-#define IMGTHRESHOLD 60
-#define HOUGHX 341 //dimension of Hough Space in rows
-#define HOUGHY 441 //dimension of Hough Space in cols
+#define IMGTHRESHOLD 65
+#define HOUGHX 110 //147 //dimension of Hough Space in cols
+#define HOUGHY 85 //113 //dimension of Hough Space in rows
 #define RMIN 25
-#define RMAX 50 //maximal radius of circle
-#define HOUGHTHRESHOLD 50
+#define RMAX 100 //maximal radius of circle
+#define HOUGHTHRESHOLD 100 //95
 
 #define MEDIANFILTERWIDTH 3
 #define MEDIANFILTERHEIGHT 6
@@ -89,7 +89,7 @@ void sobel(const cv::Mat& image, int number, cv::Mat& xDeriv, cv::Mat& yDeriv, c
 	{
 		for(int j =0; j < divided.cols; j++)
 		{	
-			arc.at<double>(i, j) = (double)atan2(xDeriv.at<double>(i,j), yDeriv.at<double>(i,j)) ;//* 180 / PI;
+			arc.at<double>(i, j) = (double)atan2(yDeriv.at<double>(i,j), xDeriv.at<double>(i,j)) ;//* 180 / PI;
 		}
 	} 
 
@@ -154,7 +154,7 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 	std::cout << "Achieved this stage 0" << std::endl ;
 	std::ostringstream windowName;
 	cv::vector<cv::Vec3d> circles ; //x,y,r
-	std::vector<std::vector<std::vector<int> > > houghSpace (HOUGHX, std::vector<std::vector<int> > (HOUGHY, std::vector<int>(RMAX-RMIN, 0) ) ) ;
+	std::vector<std::vector<std::vector<int> > > houghSpace (HOUGHY, std::vector<std::vector<int> > (HOUGHX, std::vector<int>(RMAX-RMIN, 0) ) ) ;
 	// std::vector<std::vector<std::vector<int> > > houghSpace (grad.rows+2*RMAX, std::vector<std::vector<int> > (grad.cols+2*RMAX, std::vector<int>(RMAX, 0) ) ) ;
 	// std::vector<std::vector<int> > flatHoughSpace( grad.rows, <std::vector<int> (grad.cols, 0) ) ;
 	cv::Mat flatHoughSpace = cv::Mat(grad.rows, grad.cols, CV_64F, cv::Scalar::all(0));
@@ -184,29 +184,30 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 					int rowMax = grad.rows -1 + 2*RMAX ; // grad.rows + RMAX ;
 					int colMax = grad.cols -1 + 2*RMAX ; // grad.cols + RMAX ;
 
-					int sx1 = round( ( ( x1 * (HOUGHX-1) / (rowMax - rowMin) ) ) ) ;
-					int sx2 = round( ( ( x2 * (HOUGHX-1) / (rowMax - rowMin) ) ) ) ;
-					int sy1 = round( ( ( y1 * (HOUGHY-1) / (colMax - colMin) ) ) ) ;
-					int sy2 = round( ( ( y2 * (HOUGHY-1) / (colMax - colMin) ) ) ) ;
+					int sx1 = round( ( ( x1 * (HOUGHX-1) / (colMax - colMin) ) ) ) ;
+					int sx2 = round( ( ( x2 * (HOUGHX-1) / (colMax - colMin) ) ) ) ;
+					int sy1 = round( ( ( y1 * (HOUGHY-1) / (rowMax - rowMin) ) ) ) ;
+					int sy2 = round( ( ( y2 * (HOUGHY-1) / (rowMax - rowMin) ) ) ) ;
 
 					if ( sx1 > HOUGHX || sx2 > HOUGHX || sy1 > HOUGHY || sy2 > HOUGHY )
 					std::cout << sx1 << " " << sx2 << " " << sy1 << " " << sy2 << std::endl;
 
 					//increase hough space for x1, y1, r
-					houghSpace[sx1][sy1][r-RMIN] += 1 ;
-					houghSpace[sx1][sy2][r-RMIN] += 1 ;
-					houghSpace[sx2][sy1][r-RMIN] += 1 ;
-					houghSpace[sx2][sy2][r-RMIN] += 1 ;
+					houghSpace[sy1][sx1][r-RMIN] += 1 ;
+					houghSpace[sy2][sx1][r-RMIN] += 1 ;
+					houghSpace[sy1][sx2][r-RMIN] += 1 ;
+					houghSpace[sy2][sx2][r-RMIN] += 1 ;
+
 
 					//sum over R and displa circles
 					// flatHoughSpace[(int)x1][(int)y1] += 1 ;
 					// flatHoughSpace[(int)x1][(int)y2] += 1 ;
 					// flatHoughSpace[(int)x2][(int)y1] += 1 ;
 					// flatHoughSpace[(int)x2][(int)y2] += 1 ;
-					flatHoughSpace.at<double>( round ( ( x1 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( y1 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
-					flatHoughSpace.at<double>( round ( ( x1 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( y2 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
-					flatHoughSpace.at<double>( round ( ( x2 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( y1 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
-					flatHoughSpace.at<double>( round ( ( x2 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( y2 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
+					flatHoughSpace.at<double>( round ( ( y1 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( x1 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
+					flatHoughSpace.at<double>( round ( ( y1 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( x2 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
+					flatHoughSpace.at<double>( round ( ( y2 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( x1 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
+					flatHoughSpace.at<double>( round ( ( y2 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( x2 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
 
 				}
 			}
@@ -240,16 +241,18 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 	cv::imshow(windowName.str().c_str(), flatHoughSpace) ;
 
 	//threshold hough space and display circles
-	for (int i = 0; i < HOUGHX; ++i)
+	for (int i = 0; i < HOUGHY; ++i)
 	{
-		for (int j = 0; j < HOUGHY; ++j)
+		for (int j = 0; j < HOUGHX; ++j)
 		{
 			for (int r = 0; r < RMAX-RMIN; ++r)
 			{
 				if ( houghSpace[i][j][r] > HOUGHTHRESHOLD )
 				{
 					//once again rescale
-					circles.push_back( cv::Vec3d( round(i * (img.rows-1) / (HOUGHX-1) ), round(j * (img.cols-1) / (HOUGHY-1) ), r+RMIN ) ) ;
+					//std::cout << round(i * (img.rows-1) / (HOUGHY-1) ) << "  " << j  << "  " << r+RMIN << "  " << houghSpace[i][j][r] << std::endl ;
+					
+					circles.push_back( cv::Vec3d( round(i * (img.rows-1) / (HOUGHY-1) ), round(j * (img.cols-1) / (HOUGHX-1) ), r+RMIN ) ) ;
 				}
 			}
 		}
@@ -271,7 +274,7 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 	    int linetype = 8; 
 
 	    // here is where we define the center of the circle
-		cv::Point center( round(tmp[0]), round(tmp[1]) );
+		cv::Point center( tmp[1], tmp[0] );
 		cv::circle ( img , center , radius , redColour , thickness , linetype );
 
 		circles.pop_back() ;
