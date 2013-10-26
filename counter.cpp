@@ -6,12 +6,12 @@
 #define NIMAGES 1
 #define PI 3.14159265
 
-#define IMGTHRESHOLD 100
-#define HOUGHX 200 //dimension of Hough Space in x direction
-#define HOUGHY 200 //dimension of Hough Space in y direction
-#define RMAX 100 //maximal radius of circle
-#define DELTATHETA 0.26179939 //15 degrees in radians
-#define HOUGHTHRESHOLD 200
+#define IMGTHRESHOLD 50
+#define HOUGHX 441 //dimension of Hough Space in x direction
+#define HOUGHY 341 //dimension of Hough Space in y direction
+#define RMIN 30
+#define RMAX 50 //maximal radius of circle
+#define HOUGHTHRESHOLD 11
 
 using namespace cv;
 using namespace std;
@@ -145,87 +145,137 @@ cv::Mat trshld( const int imageID, const cv::Mat& xDeriv, const cv::Mat& yDeriv,
 	return gradNorm ;
 }
 
-void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc)
+void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 {
 	std::ostringstream windowName;
-	//cv::vector<cv::Vec3d> houghSpace;
-	// std::vector<std::vector<std::vector<int> > > houghSpace (HOUGHX, std::vector<std::vector<int> > (HOUGHY, std::vector<int>(RMAX, 0) ) ) ;
-	std::vector<std::vector<std::vector<int> > > houghSpace (grad.rows, std::vector<std::vector<int> > (grad.cols, std::vector<int>(RMAX, 0) ) ) ;
-
+	cv::vector<cv::Vec3d> circles ; //x,y,r
+	std::vector<std::vector<std::vector<int> > > houghSpace (HOUGHX, std::vector<std::vector<int> > (HOUGHY, std::vector<int>(RMAX-RMIN, 0) ) ) ;
+	// std::vector<std::vector<std::vector<int> > > houghSpace (grad.rows+2*RMAX, std::vector<std::vector<int> > (grad.cols+2*RMAX, std::vector<int>(RMAX, 0) ) ) ;
+	// std::vector<std::vector<int> > flatHoughSpace( grad.rows, <std::vector<int> (grad.cols, 0) ) ;
+	cv::Mat flatHoughSpace = cv::Mat(grad.rows, grad.cols, CV_64F, cv::Scalar::all(0));
 
 	// threshold the gradient image after normalization
 	cv::Mat gradNorm(grad.rows, grad.cols, CV_64F) ;
 	// cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
 
-	// int counter = 0 ;
-	// int cprim = 0;
 
 	for(int i = 0; i < grad.rows; ++i)
 	{
 		for (int j = 0; j < grad.cols; ++j)
 		{
-			//std::cout << "i: " << i << " j: " << j << std::endl ;
 			if (grad.at<double>(i, j) == 255)
 			{
-				for (int r = 0; r < RMAX; ++r)
+				for (int r = RMIN; r < RMAX; ++r)
 				{
-					double x1 = i+r*cos(arc.at<double>(i,j));
-					double x2 = i-r*cos(arc.at<double>(i,j));
-					double y1 = j+r*sin(arc.at<double>(i,j));
-					double y2 = j-r*sin(arc.at<double>(i,j));
+					//shifted by RMAX to make scaling easier task
+					double x1 = i+r*cos(arc.at<double>(i,j)) + RMAX ;
+					double x2 = i-r*cos(arc.at<double>(i,j)) + RMAX ;
+					double y1 = j+r*sin(arc.at<double>(i,j)) + RMAX ;
+					double y2 = j-r*sin(arc.at<double>(i,j)) + RMAX ;
 
-					//scale
-					// int x = (int) ;
-					// int y = (int) ;
-					houghSpace[(int)x1][(int)y1][r] += 1 ;
-					houghSpace[(int)x1][(int)y2][r] += 1 ;
-					houghSpace[(int)x2][(int)y1][r] += 1 ;
-					houghSpace[(int)x2][(int)y2][r] += 1 ;
+					//remember about transforming form i, j coordinates to hough coordinate
+					int rowMin = 0 ; // 0 - RMAX ;
+					int colMin = 0 ; // 0 - RMAX ;
+					int rowMax = grad.rows + 2*RMAX ; // grad.rows + RMAX ;
+					int colMax = grad.cols + 2*RMAX ; // grad.cols + RMAX ;
 
-					// if ( abs(x1 - x2) < 10 && abs(y1 - y2) < 10 )
-					// {
-						// std::cout << "x=" << x1 << "  y=" << y1 << "  r=" << r <<std::endl;
-						// counter++ ;
-						// std::cout << "Eureka!" << x1 << "  " << y1 << std::endl ;
-						// fist we define the properties that the circle will have.
-					    // cv::Scalar redColour(255, 0, 0);
-					    // int radius = r;
+					int sx1 = (int) ( ( x1 * HOUGHX / (rowMax - rowMin) ) ) ;
+					int sx2 = (int) ( ( x2 * HOUGHX / (rowMax - rowMin) ) ) ;
+					int sy1 = (int) ( ( y1 * HOUGHY / (colMax - colMin) ) ) ;
+					int sy2 = (int) ( ( y2 * HOUGHY / (colMax - colMin) ) ) ;
 
-					    // providing a negative number will create a filled circle
-					    // int thickness = 5;
+					//increase hough space for x1, y1, r
+					houghSpace[sx1][sy1][r-RMIN] += 1 ;
+					houghSpace[sx1][sy2][r-RMIN] += 1 ;
+					houghSpace[sx2][sy1][r-RMIN] += 1 ;
+					houghSpace[sx2][sy2][r-RMIN] += 1 ;
 
-					    // 8 connected line
-					    // ( also there is a 4 connected line and CVAA which is an anti aliased line )
-					    // int linetype = 8; 
+					//sum over R and displa circles
+					// flatHoughSpace[(int)x1][(int)y1] += 1 ;
+					// flatHoughSpace[(int)x1][(int)y2] += 1 ;
+					// flatHoughSpace[(int)x2][(int)y1] += 1 ;
+					// flatHoughSpace[(int)x2][(int)y2] += 1 ;
+					flatHoughSpace.at<double>( (int) ( ( x1 * grad.rows / (rowMax - rowMin) ) ), (int) ( ( y1 * grad.cols / (colMax - colMin) ) ) ) += 1 ;
+					flatHoughSpace.at<double>( (int) ( ( x1 * grad.rows / (rowMax - rowMin) ) ), (int) ( ( y2 * grad.cols / (colMax - colMin) ) ) ) += 1 ;
+					flatHoughSpace.at<double>( (int) ( ( x2 * grad.rows / (rowMax - rowMin) ) ), (int) ( ( y1 * grad.cols / (colMax - colMin) ) ) ) += 1 ;
+					flatHoughSpace.at<double>( (int) ( ( x2 * grad.rows / (rowMax - rowMin) ) ), (int) ( ( y2 * grad.cols / (colMax - colMin) ) ) ) += 1 ;
 
-					    // here is where we define the center of the circle
-        				// cv::Point center( (int)x1, (int)y1 );
-        				// cv::circle ( gradNorm , center , radius , 50 , thickness , linetype );
-
-						//remember about transforming form i, j coordinates to hough coordinate
-						//increase hough space for x1, y1, r
-					// }
-					// cprim++ ;
 				}
 			}
 		}
 	}
-	// std::cout << "Counter: " << counter << " Cprim: " << cprim << std::endl ;
+	std::cout << "Achieved this stage" << std::endl ;
+
+	//take logs
+	for (int i = 0; i < flatHoughSpace.rows; ++i)
+	{
+		for (int j = 0; j < flatHoughSpace.cols; ++j)
+		{
+			if (flatHoughSpace.at<double>(i,j) != 0)
+			{
+				// std::cout << flatHoughSpace.at<double>(i,j) << std::endl ;
+				flatHoughSpace.at<double>(i,j) = log( flatHoughSpace.at<double>(i,j) ) ;
+				// std::cout << flatHoughSpace.at<double>(i,j) << std::endl ;
+			}
+		}
+	}
 
 	windowName.str("");
 	windowName.clear();
-	windowName << "Coins " << (imageID + 1) << ": circles";
+	windowName << "Coins " << (imageID + 1) << ": Hough space";
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
-
 	//scale
 	cv::Mat temp8Bit;
-	cv::normalize(gradNorm, temp8Bit, 0, 255, cv::NORM_MINMAX);
-	
-	temp8Bit.convertTo(gradNorm, CV_8U);
+	cv::normalize(flatHoughSpace, temp8Bit, 0, 255, cv::NORM_MINMAX);
+	temp8Bit.convertTo(flatHoughSpace, CV_8U);
 	//convert
+	cv::imshow(windowName.str().c_str(), flatHoughSpace) ;
 
-	cv::imshow(windowName.str().c_str(), gradNorm) ;
+	//threshold hough space and display circles
+	for (int i = 0; i < HOUGHX; ++i)
+	{
+		for (int j = 0; j < HOUGHY; ++j)
+		{
+			for (int r = 0; r < RMAX-RMIN; ++r)
+			{
+				if ( houghSpace[i][j][r] > HOUGHTHRESHOLD )
+				{
+					//once again rescale
+					circles.push_back( cv::Vec3d( (i * grad.rows / HOUGHX), (j * grad.cols / HOUGHY), r+RMIN ) ) ;
+				}
+			}
+		}
+	}
+
+	while (!circles.empty())
+	{
+		cv::Vec3d tmp = circles.back() ;
+
+		// fist we define the properties that the circle will have.
+	    cv::Scalar redColour(255, 0, 0);
+	    int radius = tmp[2];
+
+	    // providing a negative number will create a filled circle
+	    int thickness = 4;
+
+	    // 8 connected line
+	    // ( also there is a 4 connected line and CVAA which is an anti aliased line )
+	    int linetype = 8; 
+
+	    // here is where we define the center of the circle
+		cv::Point center( (int)tmp[0], (int)tmp[1] );
+		cv::circle ( img , center , radius , redColour , thickness , linetype );
+
+		circles.pop_back() ;
+	}
+	windowName.str("");
+	windowName.clear();
+	windowName << "Coins " << (imageID + 1) << ": Detected Circles";
+	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
+	cv::imshow(windowName.str().c_str(), img) ;
+
 }
+
 
 int main( int argc, char ** argv )
 {
@@ -251,7 +301,7 @@ int main( int argc, char ** argv )
 
 		//edge extraction using Hough Circle Detection
 		cv::Mat gradTr = trshld(i, xD, yD, grad, angle) ;
-		hough(i, gradTr, angle) ;
+		hough(i, gradTr, angle, coins[i]) ;
 	}
 
 	cv::waitKey();
