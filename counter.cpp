@@ -3,20 +3,20 @@
 #include <highgui/highgui.hpp>
 #include <cmath>
 
-#define NIMAGES 1
+#define NIMAGES 3
 #define PI 3.14159265
 
 #define IMGTHRESHOLD 65
 #define HOUGHX 441//110 //147 //dimension of Hough Space in cols
 #define HOUGHY 341//85 //113 //dimension of Hough Space in rows
 #define RMIN 35
-#define RMAX 60 //maximal radius of circle
-#define HOUGHTHRESHOLD 20 //95
+#define RMAX 70 //maximal radius of circle
+#define HOUGHTHRESHOLD 24 //95
 
 #define MEDIANFILTERWIDTH 3
 #define MEDIANFILTERHEIGHT 6
 
-#define INTERVAL 35 //confidence interval for circles
+#define INTERVAL 17 //confidence interval for circles
 
 using namespace cv;
 using namespace std;
@@ -309,30 +309,47 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 
 
 	    //if similar circle was put dont do it again
-	    while(!centres.empty())
+	    for (std::vector<Vec2d>::iterator it = centres.begin() ; it != centres.end(); ++it)
 	    {
-	    	cv::Vec2d tmpc = centres.back() ;
+	    	cv::Vec2d tmpc = *it ;
 	    	if ( abs(tmpc[0] - tmp[0]) < INTERVAL && abs(tmpc[1] - tmp[1]) < INTERVAL )
 	    	{
 	    		putcircle = false ;
 	    		break;
-	    	} else
-	    	{
-	    		putcircle = true ;
-	    		std::cout << tmp[1] << " " << tmp[0] << std::endl;
-	    		break;
-	    	}
-
+	    	 }
 	    }
+
+	    // while(!centres.empty())
+	    // {
+	    // 	cv::Vec2d tmpc = centres.back() ;
+	    // 	if ( abs(tmpc[0] - tmp[0]) < INTERVAL && abs(tmpc[1] - tmp[1]) < INTERVAL )
+	    // 	{
+	    // 		putcircle = false ;
+	    // 		//std::cout << abs(tmpc[0] - tmp[0]) << " Break " << abs(tmpc[1] - tmp[1]) << std::endl;
+	    // 		//centres.pop_back() ;
+	    // 		//break;
+	    // 	 }
+	    	//std::cout << "Current: " << tmp[0] << " fitted: " << tmpc[0] << " diff: " << abs(tmpc[0] - tmp[0]) << std::endl;
+	    	//std::cout << "Current: " << tmp[1] << " fitted: " << tmpc[1] << " diff: " << abs(tmpc[1] - tmp[1]) << std::endl<<std::endl;
+	    		//else
+	    	// {
+	    	// 	putcircle = true ;
+	    	// 	std::cout << tmp[1] << " " << tmp[0] << std::endl;
+	    	// 	break;
+	    	//
+	    // 	centres.pop_back() ;
+	    // }
+
 
 	    if ( putcircle )
 	    {
+	    	//std::cout << tmp[1] << " " << tmp[0] << std::endl;
 	    	centres.push_back(cv::Vec2d(tmp[0], tmp[1])) ;
 			// here is where we define the center of the circle
 			cv::Point center( tmp[1], tmp[0] );
 			cv::circle ( img , center , radius , redColour , thickness , linetype );
-			putcircle = false;
 	    }
+	    putcircle = true;
 
 	    
 
