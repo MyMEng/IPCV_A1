@@ -3,7 +3,7 @@
 #include <highgui/highgui.hpp>
 #include <cmath>
 
-#define NIMAGES 3
+#define NIMAGES 1
 #define PI 3.14159265
 
 #define IMGTHRESHOLD 65
