@@ -7,14 +7,16 @@
 #define PI 3.14159265
 
 #define IMGTHRESHOLD 65
-#define HOUGHX 110 //147 //dimension of Hough Space in cols
-#define HOUGHY 85 //113 //dimension of Hough Space in rows
-#define RMIN 25
-#define RMAX 100 //maximal radius of circle
-#define HOUGHTHRESHOLD 100 //95
+#define HOUGHX 441//110 //147 //dimension of Hough Space in cols
+#define HOUGHY 341//85 //113 //dimension of Hough Space in rows
+#define RMIN 35
+#define RMAX 60 //maximal radius of circle
+#define HOUGHTHRESHOLD 20 //95
 
 #define MEDIANFILTERWIDTH 3
 #define MEDIANFILTERHEIGHT 6
+
+#define INTERVAL 35 //confidence interval for circles
 
 using namespace cv;
 using namespace std;
@@ -163,6 +165,14 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 	cv::Mat gradNorm(grad.rows, grad.cols, CV_64F) ;
 	// cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
 
+	std::vector <double> xes ;
+	std::vector <double> yes ;
+
+	//remember about transforming form i, j coordinates to hough coordinate
+	int rowMin = 0 ; // 0 - RMAX ;
+	int colMin = 0 ; // 0 - RMAX ;
+	int rowMax = grad.rows -1 + 2*RMAX ; // grad.rows + RMAX ;
+	int colMax = grad.cols -1 + 2*RMAX ; // grad.cols + RMAX ;
 
 	for(int i = 0; i < grad.rows; ++i)
 	{
@@ -173,16 +183,22 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 				for (int r = RMIN; r < RMAX; ++r)
 				{
 					//shifted by RMAX to make scaling easier task
-					double x1 = j+r*cos(arc.at<double>(i,j)) + RMAX ;
-					double x2 = j-r*cos(arc.at<double>(i,j)) + RMAX ;
-					double y1 = i+r*sin(arc.at<double>(i,j)) + RMAX ;
-					double y2 = i-r*sin(arc.at<double>(i,j)) + RMAX ;
+					double x1 = j+r*cos(arc.at<double>(i,j)) ;
+					double x2 = j-r*cos(arc.at<double>(i,j)) ;
+					double y1 = i+r*sin(arc.at<double>(i,j)) ;
+					double y2 = i-r*sin(arc.at<double>(i,j)) ;
 
-					//remember about transforming form i, j coordinates to hough coordinate
-					int rowMin = 0 ; // 0 - RMAX ;
-					int colMin = 0 ; // 0 - RMAX ;
-					int rowMax = grad.rows -1 + 2*RMAX ; // grad.rows + RMAX ;
-					int colMax = grad.cols -1 + 2*RMAX ; // grad.cols + RMAX ;
+					xes.push_back(x1) ;
+					xes.push_back(x2) ;
+					yes.push_back(y1) ;
+					yes.push_back(y2) ;
+
+					x1 += RMAX ;
+					x2 += RMAX ;
+					y1 += RMAX ;
+					y2 += RMAX ;
+
+
 
 					int sx1 = round( ( ( x1 * (HOUGHX-1) / (colMax - colMin) ) ) ) ;
 					int sx2 = round( ( ( x2 * (HOUGHX-1) / (colMax - colMin) ) ) ) ;
@@ -252,14 +268,24 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 					//once again rescale
 					//std::cout << round(i * (img.rows-1) / (HOUGHY-1) ) << "  " << j  << "  " << r+RMIN << "  " << houghSpace[i][j][r] << std::endl ;
 					
-					circles.push_back( cv::Vec3d( round(i * (img.rows-1) / (HOUGHY-1) ), round(j * (img.cols-1) / (HOUGHX-1) ), r+RMIN ) ) ;
+					circles.push_back( cv::Vec3d( i, j, r+RMIN ) ) ;
 				}
 			}
 		}
 	}
 
+    //scaling
+    double minx = *min_element( xes.begin(), xes.end() );
+    double maxx = *max_element( xes.begin(), xes.end() );
+    double miny = *min_element(yes.begin(), yes.end() );
+    double maxy = *max_element(yes.begin(), yes.end() );
+
+    std::vector<cv::Vec2d> centres ;
+    bool putcircle = true ;
+
 	while (!circles.empty())
 	{
+		//std::cout << "circle and circle" << std::endl;
 		cv::Vec3d tmp = circles.back() ;
 
 		// fist we define the properties that the circle will have.
@@ -273,9 +299,42 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 	    // ( also there is a 4 connected line and CVAA which is an anti aliased line )
 	    int linetype = 8; 
 
-	    // here is where we define the center of the circle
-		cv::Point center( tmp[1], tmp[0] );
-		cv::circle ( img , center , radius , redColour , thickness , linetype );
+	    //recover old vslues
+	    tmp[0] = (tmp[0] * (rowMax - rowMin) / (HOUGHY-1) ) -RMAX ; // (img.rows-1) / (HOUGHY-1) ;
+	    tmp[1] = (tmp[1] * (colMax - colMin) / (HOUGHX-1) ) -RMAX ; // (img.cols-1) / (HOUGHX-1) ;
+
+	    //rescale
+	    tmp[0] = round ( ((img.rows) *(tmp[0] - miny))/(maxy-miny) );
+	    tmp[1] = round ( ((img.cols) *(tmp[1] - minx))/(maxx-minx) );
+
+
+	    //if similar circle was put dont do it again
+	    while(!centres.empty())
+	    {
+	    	cv::Vec2d tmpc = centres.back() ;
+	    	if ( abs(tmpc[0] - tmp[0]) < INTERVAL && abs(tmpc[1] - tmp[1]) < INTERVAL )
+	    	{
+	    		putcircle = false ;
+	    		break;
+	    	} else
+	    	{
+	    		putcircle = true ;
+	    		std::cout << tmp[1] << " " << tmp[0] << std::endl;
+	    		break;
+	    	}
+
+	    }
+
+	    if ( putcircle )
+	    {
+	    	centres.push_back(cv::Vec2d(tmp[0], tmp[1])) ;
+			// here is where we define the center of the circle
+			cv::Point center( tmp[1], tmp[0] );
+			cv::circle ( img , center , radius , redColour , thickness , linetype );
+			putcircle = false;
+	    }
+
+	    
 
 		circles.pop_back() ;
 	}
