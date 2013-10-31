@@ -7,11 +7,11 @@
 #define PI 3.14159265
 
 #define IMGTHRESHOLD 65
-#define HOUGHX 441//110 //147 //dimension of Hough Space in cols
-#define HOUGHY 341//85 //113 //dimension of Hough Space in rows
-#define RMIN 35
-#define RMAX 70 //maximal radius of circle
-#define HOUGHTHRESHOLD 24 //95
+#define HOUGHX 110//441//110 //147 //dimension of Hough Space in cols
+#define HOUGHY 85//341//85 //113 //dimension of Hough Space in rows
+#define RMIN 30
+#define RMAX 55 //maximal radius of circle
+#define HOUGHTHRESHOLD 95//24 //95
 
 #define MEDIANFILTERWIDTH 3
 #define MEDIANFILTERHEIGHT 6
@@ -95,28 +95,11 @@ void sobel(const cv::Mat& image, int number, cv::Mat& xDeriv, cv::Mat& yDeriv, c
 		}
 	} 
 
-	// Display minimum and maximum value from matrix
-	// cv::minMaxLoc(arc, &minVal, &maxVal) ;
-	// std::cout << "Minval: " << minVal << " Maxval: " << maxVal << std::endl ;
-
 	cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
 
 	cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
 	arcNorm.convertTo(temp8Bit, CV_8U);
 	cv::imshow(windowName.str().c_str(), temp8Bit);
-
-	// Phase Calculations
-	// Change window name
-	// windowName.str("");
-	// windowName.clear();
-	// windowName << "Coins " << (number + 1) << ": opencv phase";
-
-	// cv::phase(xDeriv, yDeriv, arc);
-	// cv::normalize(arc, arcNorm, 0, 255, cv::NORM_MINMAX);
-
-	// cv::namedWindow(windowName.str().c_str(), CV_WINDOW_AUTOSIZE);
-	// arcNorm.convertTo(temp8Bit, CV_8U);
-	// cv::imshow(windowName.str().c_str(), temp8Bit);
 
 }
 
@@ -131,7 +114,6 @@ cv::Mat trshld( const int imageID, const cv::Mat& xDeriv, const cv::Mat& yDeriv,
 	{
 		for (int j = 0; j < gradNorm.cols; ++j)
 		{
-			//std::cout << "i: " << i << " j: " << j << std::endl ;
 			double tr = gradNorm.at<double>(i, j);
 			if (tr > IMGTHRESHOLD)
 			{
@@ -157,13 +139,10 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 	std::ostringstream windowName;
 	cv::vector<cv::Vec3d> circles ; //x,y,r
 	std::vector<std::vector<std::vector<int> > > houghSpace (HOUGHY, std::vector<std::vector<int> > (HOUGHX, std::vector<int>(RMAX-RMIN, 0) ) ) ;
-	// std::vector<std::vector<std::vector<int> > > houghSpace (grad.rows+2*RMAX, std::vector<std::vector<int> > (grad.cols+2*RMAX, std::vector<int>(RMAX, 0) ) ) ;
-	// std::vector<std::vector<int> > flatHoughSpace( grad.rows, <std::vector<int> (grad.cols, 0) ) ;
 	cv::Mat flatHoughSpace = cv::Mat(grad.rows, grad.cols, CV_64F, cv::Scalar::all(0));
 
 	// threshold the gradient image after normalization
 	cv::Mat gradNorm(grad.rows, grad.cols, CV_64F) ;
-	// cv::normalize(grad, gradNorm, 0, 255, cv::NORM_MINMAX);
 
 	std::vector <double> xes ;
 	std::vector <double> yes ;
@@ -198,8 +177,6 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 					y1 += RMAX ;
 					y2 += RMAX ;
 
-
-
 					int sx1 = round( ( ( x1 * (HOUGHX-1) / (colMax - colMin) ) ) ) ;
 					int sx2 = round( ( ( x2 * (HOUGHX-1) / (colMax - colMin) ) ) ) ;
 					int sy1 = round( ( ( y1 * (HOUGHY-1) / (rowMax - rowMin) ) ) ) ;
@@ -214,12 +191,6 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 					houghSpace[sy1][sx2][r-RMIN] += 1 ;
 					houghSpace[sy2][sx2][r-RMIN] += 1 ;
 
-
-					//sum over R and displa circles
-					// flatHoughSpace[(int)x1][(int)y1] += 1 ;
-					// flatHoughSpace[(int)x1][(int)y2] += 1 ;
-					// flatHoughSpace[(int)x2][(int)y1] += 1 ;
-					// flatHoughSpace[(int)x2][(int)y2] += 1 ;
 					flatHoughSpace.at<double>( round ( ( y1 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( x1 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
 					flatHoughSpace.at<double>( round ( ( y1 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( x2 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
 					flatHoughSpace.at<double>( round ( ( y2 * (flatHoughSpace.rows-1) / (rowMax - rowMin) ) ), round ( ( x1 * (flatHoughSpace.cols-1) / (colMax - colMin) ) ) ) += 1 ;
@@ -238,9 +209,7 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 		{
 			if (flatHoughSpace.at<double>(i,j) != 0)
 			{
-				// std::cout << flatHoughSpace.at<double>(i,j) << std::endl ;
 				flatHoughSpace.at<double>(i,j) = log( flatHoughSpace.at<double>(i,j) ) ;
-				// std::cout << flatHoughSpace.at<double>(i,j) << std::endl ;
 			}
 		}
 	}
@@ -264,10 +233,7 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 			for (int r = 0; r < RMAX-RMIN; ++r)
 			{
 				if ( houghSpace[i][j][r] > HOUGHTHRESHOLD )
-				{
-					//once again rescale
-					//std::cout << round(i * (img.rows-1) / (HOUGHY-1) ) << "  " << j  << "  " << r+RMIN << "  " << houghSpace[i][j][r] << std::endl ;
-					
+				{					
 					circles.push_back( cv::Vec3d( i, j, r+RMIN ) ) ;
 				}
 			}
@@ -285,7 +251,6 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 
 	while (!circles.empty())
 	{
-		//std::cout << "circle and circle" << std::endl;
 		cv::Vec3d tmp = circles.back() ;
 
 		// fist we define the properties that the circle will have.
@@ -318,28 +283,6 @@ void hough( const int imageID, cv::Mat& grad, const cv::Mat& arc, cv::Mat& img)
 	    		break;
 	    	 }
 	    }
-
-	    // while(!centres.empty())
-	    // {
-	    // 	cv::Vec2d tmpc = centres.back() ;
-	    // 	if ( abs(tmpc[0] - tmp[0]) < INTERVAL && abs(tmpc[1] - tmp[1]) < INTERVAL )
-	    // 	{
-	    // 		putcircle = false ;
-	    // 		//std::cout << abs(tmpc[0] - tmp[0]) << " Break " << abs(tmpc[1] - tmp[1]) << std::endl;
-	    // 		//centres.pop_back() ;
-	    // 		//break;
-	    // 	 }
-	    	//std::cout << "Current: " << tmp[0] << " fitted: " << tmpc[0] << " diff: " << abs(tmpc[0] - tmp[0]) << std::endl;
-	    	//std::cout << "Current: " << tmp[1] << " fitted: " << tmpc[1] << " diff: " << abs(tmpc[1] - tmp[1]) << std::endl<<std::endl;
-	    		//else
-	    	// {
-	    	// 	putcircle = true ;
-	    	// 	std::cout << tmp[1] << " " << tmp[0] << std::endl;
-	    	// 	break;
-	    	//
-	    // 	centres.pop_back() ;
-	    // }
-
 
 	    if ( putcircle )
 	    {
